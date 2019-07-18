@@ -43,13 +43,13 @@ def print_hex_dump(raw_bytes):
     count = 0
     for b in raw_bytes:
         if count % 16 == 0:
-            sys.stdout.write(' ' * 4)
-        sys.stdout.write('{:02x} '.format(b))
+            print(' ' * 4, end="")
+        print('{:02x} '.format(b), end="")
         count += 1
         if count % 16 == 0:
-            sys.stdout.write('\n')
+            print()
     if count % 16:
-        sys.stdout.write('\n')
+        print()
 
 def pw64_dump_filesys(fname, startOffset, hexSize):
     def hexdump(raw_bytes):
@@ -63,50 +63,38 @@ def pw64_dump_filesys(fname, startOffset, hexSize):
         dumping = True
         while (dumping):
             fileOffset = fin.tell()
-            sys.stdout.write('0x%06X|%06X: ' % (fileOffset, fileOffset - startOffset))
+            print('0x%06X|%06X: ' % (fileOffset, fileOffset - startOffset), end="")
             magic = fin.read(4)
             magicInt = int.from_bytes(magic, byteorder='big')
             if magicInt == 0:
                 print('00000000 [EOF]')
                 break
-            magicStr = magic.decode('utf-8')
+            magicStr = magic.decode('ascii')
             if magicStr == 'FORM':
                 formLength = int.from_bytes(fin.read(4), byteorder='big')
                 formEnd = fin.tell() + formLength
                 print('%s: 0x%06X (end: 0x%06X)' % (magicStr, formLength, formEnd))
+
+                fileOffset = fin.tell()
+                blockType = fin.read(4).decode('ascii')
+                print('0x%06X|%06X: ' % (fileOffset, fileOffset - startOffset), end="")
+                print("  %s" % blockType);
+
                 while (fin.tell() < formEnd):
                     fileOffset = fin.tell()
-                    sys.stdout.write('0x%06X|%06X: ' % (fileOffset, fileOffset - startOffset))
-                    magic = fin.read(4)
-                    magicStr = magic.decode('utf-8')
-                    # no length on these
-                    if magicStr in ['UVSY', 'UVEN', 'UVLT', 'UVTR', 'UVLV',
-                                    'UVSQ', 'UVTP', 'UVMD', 'UVCT', 'UVTX',
-                                    'UVAN', 'UVFT', 'UPWL', 'SPTH', 'UPWT',
-                                    'ADAT', '3VUE', 'PDAT', 'UVBT', 'UVSX',
-                                    'UVRM']:
-                        print('  %s' % magicStr)
-                        blockType = magicStr
-                    elif magicStr == 'NAME': # ASCII name identifier
-                        length = int.from_bytes(fin.read(4), byteorder='big')
-                        name = fin.read(length)
-                        nameStr = name.decode('utf-8').rstrip('\0')
-                        print('  %s: 0x%06X: %s' % (magicStr, length, nameStr))
-                    elif magicStr == 'INFO': # usually mission objective
+                    print('0x%06X|%06X: ' % (fileOffset, fileOffset - startOffset), end="")
+                    magicStr = fin.read(4).decode('ascii')
+
+                    if magicStr in ['NAME', 'INFO', 'JPTX', 'MDBG']:
                         length = int.from_bytes(fin.read(4), byteorder='big')
                         info = fin.read(length)
-                        infoStr = info.decode('utf-8').rstrip('\0')
-                        print('  %s: 0x%06X: %s' % (magicStr, length, infoStr))
-                    elif magicStr == 'JPTX': # some ASCII identifier
-                        length = int.from_bytes(fin.read(4), byteorder='big')
-                        info = fin.read(length)
-                        infoStr = info.decode('utf-8').rstrip('\0')
+                        infoStr = info.decode('ascii').rstrip('\0')
                         print('  %s: 0x%06X: %s' % (magicStr, length, infoStr))
                     elif magicStr == 'GZIP': # not actually gzip, but MIO0 container
                         gzipLength = int.from_bytes(fin.read(4), byteorder='big')
                         absOffset = fin.tell() + gzipLength
                         decompType = fin.read(4)
-                        decompTypeStr = decompType.decode('utf-8')
+                        decompTypeStr = decompType.decode('ascii')
                         decompLength = int.from_bytes(fin.read(4), byteorder='big')
 
                         compBytes = fin.read(gzipLength - 8)
@@ -136,7 +124,12 @@ def pw64_dump_filesys(fname, startOffset, hexSize):
                                       'XLAT', 'PHDR', 'RHDR', 'PPOS', 'RPKT',
                                       '.CTL', '.TBL',
                                       'SCPP', 'SCPH', 'SCPX', 'SCPY', 'SCPR', 'SCPZ', 'SCP#',
-                                      'LEVL', 'RNGS', 'BNUS', 'WOBJ', 'LPAD', 'TOYS', 'TPTS', 'APTS']:
+                                      'LEVL', 'RNGS', 'BNUS', 'WOBJ', 'LPAD', 'TOYS', 'TPTS', 'APTS',
+                                      'TEXT', 'PIID', 'RELA', 'SCPT', #F1WGP
+                                      'UVPX', 'UVMO', 'UVDS', 'UVTX', 'UVTR', 'UVCT', 'UVMD', #F1WGP
+                                      'FTKL', 'UVEN', 'UVRW', 'STRY', 'UVBT', 'UVFT', 'UVSX', #F1WGP
+                                      'UVMS', 'UVMB', 'UVTS', 'UVTP', #F1WGP
+                                      'UVAN', 'SEQS']: #F1WGP2
                         length = int.from_bytes(fin.read(4), byteorder='big')
                         sectionData = fin.read(length)
                         print('  %s: 0x%06X:' % (magicStr, length))
